@@ -15,7 +15,7 @@ enum TokenType {
     case integer(Int)
     case float(Float)
     case string(String)
-    case character(Character)
+    case character(String)
 }
 
 struct Token {

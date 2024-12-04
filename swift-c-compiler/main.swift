@@ -7,11 +7,6 @@
 
 import Foundation
 
-enum CommandLineError: Error {
-    case invalidArguments(String)
-    case readFileError(String)
-}
-
 func main() throws {
     if CommandLine.arguments.count != 2 {
         throw CommandLineError.invalidArguments("Expected 2 arguments but \(CommandLine.arguments.count) were given.")
