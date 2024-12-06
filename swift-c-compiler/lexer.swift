@@ -12,13 +12,13 @@ import Foundation
 func tokenize(input: String) throws -> [Token] {
     
     /* Processes input into keyword or identifier token
-       updates the starting index to the last index that's not part of the word
+       updates the starting index to next index after token
        returns token
      */
     func processWord(startIndex: inout String.Index) -> Token {
         var endIndex = input.index(after: startIndex)
         while endIndex < input.endIndex &&
-                (input[endIndex].isLetter || input[endIndex].isNumber || input[endIndex] == "_") {
+                (input[endIndex].isLetter || input[endIndex].isWholeNumber || input[endIndex] == "_") {
             endIndex = input.index(after: endIndex)
         }
         let word = String(input[startIndex..<endIndex])
@@ -29,6 +29,7 @@ func tokenize(input: String) throws -> [Token] {
             "double", "else", "enum", "extern", "float", "for", "goto", "if", "int",
             "long", "register", "return", "short", "signed", "sizeof", "static",
             "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while":
+            // TODO: Make set of keywords to check if it contains word to optimize run time
             Token(type: .keyword(word))
         default:
             Token(type: .identifier(word))
@@ -36,7 +37,7 @@ func tokenize(input: String) throws -> [Token] {
     }
     
     /* Processes input into arithemetic, relational, or assignment operator token
-       updates the starting index to the last index that's not part of the operator
+       updates the starting index to next index after token
        returns token
      */
     func processOperator(startIndex: inout String.Index) throws -> Token {
@@ -59,6 +60,10 @@ func tokenize(input: String) throws -> [Token] {
         }
     }
     
+    /* Processes input into string token
+       updates starting index to next index after token literal
+       returns token
+     */
     func processString(startIndex: inout String.Index) throws -> Token {
         // Start index after first double quotation mark
         startIndex = input.index(after: startIndex)
@@ -67,14 +72,18 @@ func tokenize(input: String) throws -> [Token] {
             endIndex = input.index(after: endIndex)
         }
         if endIndex == input.endIndex {
-            throw TokenError.invalidToken("Missing closing quotation \"")
+            throw TokenError.invalidToken("Missing closing quotation: \"")
         }
-        let str  = String(input[startIndex...endIndex])
+        let str = String(input[startIndex..<endIndex])
         startIndex = input.index(after: endIndex)
         return Token(type: .string(str))
     }
     
-    func processChar(startIndex: inout String.Index) throws -> Token {
+    /* Processes input into character token
+       updates starting index to next index after token literal
+       returns token
+     */
+    func processCharacter(startIndex: inout String.Index) throws -> Token {
         // Start index after first quotation mark
         startIndex = input.index(after: startIndex)
         var endIndex = startIndex
@@ -82,13 +91,17 @@ func tokenize(input: String) throws -> [Token] {
             endIndex = input.index(after: endIndex)
         }
         if endIndex == input.endIndex {
-            throw TokenError.invalidToken("Missing closing quotation '")
+            throw TokenError.invalidToken("Missing closing quotation: '")
         }
-        let str  = String(input[startIndex...endIndex])
+        let str = String(input[startIndex..<endIndex])
         startIndex = input.index(after: endIndex)
         return Token(type: .character(str))
     }
     
+    /* Processes input into integer or float token
+       updates starting index to next index after token literal
+       returns token
+     */
     func processNumber(startIndex: inout String.Index) throws -> Token {
         var endIndex = input.index(after: startIndex)
         while endIndex < input.endIndex && (input[endIndex].isWholeNumber || input[endIndex] == ".") {
@@ -103,36 +116,37 @@ func tokenize(input: String) throws -> [Token] {
             return Token(type: .float(numFloat))
         }
         throw TokenError.invalidToken("Invalid number: \(numString)")
-        
     }
     
+    // Main tokenize function logic:
     var tokenBuffer: [Token] = []
     
     var i = input.startIndex
     while i < input.endIndex {
-        var literal = input[i]
+        let literal = input[i]
         switch literal {
             
         case let char where char.isWhitespace:
-            continue
+            i = input.index(after: i)
             
         case ";", ",", "(", ")", "{", "}":
             tokenBuffer.append(Token(type: .delimiter(literal)))
-            
-        case let char where char.isLetter || char == "_":
-            tokenBuffer.append(processWord(startIndex: &i))
+            i = input.index(after: i)
+        
+        case "\"":
+            tokenBuffer.append(try processString(startIndex: &i))
+        
+        case "'":
+            tokenBuffer.append(try processCharacter(startIndex: &i))
             
         case let char where "+-=/*%<>!&|".contains(char):
             tokenBuffer.append(try processOperator(startIndex: &i))
             
-        case let char where char == "\"":
-            tokenBuffer.append(try processString(startIndex: &i))
-        
-        case let char where char == "'":
-            tokenBuffer.append(try processChar(startIndex: &i))
-            
-        case let str where literal.isWholeNumber:
+        case let char where char.isWholeNumber:
             tokenBuffer.append(try processNumber(startIndex: &i))
+        
+        case let char where char.isLetter || char == "_":
+            tokenBuffer.append(processWord(startIndex: &i))
             
         default:
             throw TokenError.invalidToken("Unrecognized character: \(literal)")
@@ -140,8 +154,4 @@ func tokenize(input: String) throws -> [Token] {
     }
     
     return tokenBuffer
-}
-
-func main(file: String) -> [String] {
-    return []
 }

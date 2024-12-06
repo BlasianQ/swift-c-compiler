@@ -25,7 +25,10 @@ func main() throws {
 }
 
 do {
-    try main()
+//    try main()
+    print("before calling test")
+    let t = try test()
+    print(t)
 } catch {
     print(error)
 }
